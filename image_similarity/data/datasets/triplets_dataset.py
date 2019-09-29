@@ -71,7 +71,7 @@ class TripletsDataset(Dataset):
         )
         self.transform = transform or transforms.Compose(
             [
-                self.NormalizeRGB(),
+                self.NormalizeToRGBA(),
                 self.Rescale(256),
                 self.RandomCrop(224),
                 self.ToTensor(),
@@ -145,7 +145,7 @@ class TripletsDataset(Dataset):
         logging.info(f"Dataset totals {len(triplets) * 3} images")
         return triplets
 
-    class NormalizeRGB:
+    class NormalizeToRGBA:
         def __call__(self, sample):
             normalized_sample = []
             for image in sample:
@@ -154,6 +154,10 @@ class TripletsDataset(Dataset):
                     normalized = color.gray2rgb(image)
                 elif image.shape[2] == 4:
                     normalized = color.rgba2rgb(image)
+                # if len(image.shape) == 2:
+                #     normalized = color.gray2rgb(image, alpha=True)
+                # elif image.shape[2] == 3:
+                #     normalized = np.dstack((image, np.zeros([image.shape[0], image.shape[1]])))
                 normalized_sample.append(normalized)
             return normalized_sample
 
@@ -215,7 +219,7 @@ class TripletsDataset(Dataset):
             top = np.random.randint(0, h - new_h)
             left = np.random.randint(0, w - new_w)
 
-            cropped_image = image[top : top + new_h, left : left + new_w]
+            cropped_image = image[top: top + new_h, left: left + new_w]
 
             return cropped_image
 
@@ -226,19 +230,6 @@ class TripletsDataset(Dataset):
             # swap color axis because
             # numpy image: H x W x C
             # torch image: C X H X W
-            try:
-                return [
-                    torch.from_numpy(image.transpose((2, 0, 1))) for image in sample
-                ]
-            except Exception as e:
-                import matplotlib.pyplot as plt
-
-                fig = plt.figure()
-                for i in [0, 1, 2]:
-                    ax = plt.subplot(1, 3, i + 1)
-                    plt.tight_layout()
-                    ax.set_title("Sample #{}".format(i))
-                    ax.axis("off")
-                    plt.imshow(sample[i])
-                plt.show()
-                logging.error(e)
+            return [
+                torch.from_numpy(image.transpose((2, 0, 1))).view(1, 3, 224, 224) for image in sample
+            ]
