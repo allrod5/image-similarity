@@ -4,17 +4,19 @@ from pathlib import Path
 from typing import List, Optional, Callable, Union
 from urllib.error import URLError
 from urllib.request import urlretrieve
+from PIL import Image
 
 import numpy as np
 import torch
 from alive_progress import alive_bar
-from skimage import color, transform
+from skimage import color, img_as_ubyte, transform
 from skimage.io import imread
 from torch.utils.data import Dataset
 from torchvision import transforms
 
 from image_similarity.util.dir import get_project_root
 
+count = 0
 
 @dataclass
 class Triplet:
@@ -188,9 +190,7 @@ class TripletsDataset(Dataset):
                 new_h, new_w = self.output_size
 
             new_h, new_w = int(new_h), int(new_w)
-
-            resized_image = transform.resize(image, (new_h, new_w))
-
+            resized_image = img_as_ubyte(transform.resize(image, (new_h, new_w)))
             return resized_image
 
     class RandomCrop(object):
@@ -220,16 +220,17 @@ class TripletsDataset(Dataset):
             left = np.random.randint(0, w - new_w)
 
             cropped_image = image[top: top + new_h, left: left + new_w]
-
             return cropped_image
 
     class ToTensor(object):
         """Convert ndarrays in sample to Tensors."""
 
         def __call__(self, sample: List[np.ndarray]):
-            # swap color axis because
+            # swap color axis using transpose because
             # numpy image: H x W x C
             # torch image: C X H X W
-            return [
-                torch.from_numpy(image.transpose((2, 0, 1))).view(1, 3, 224, 224) for image in sample
+            bla = [
+                torch.from_numpy(image.transpose((2, 0, 1))).view(1, 3, 224, 224).float()
+                for image in sample
             ]
+            return bla
